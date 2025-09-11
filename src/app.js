@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import morgan from "morgan";
 import userRoutes from "./routes/userRoutes.js";
+import productRoutes from "./routes/productRoutes.js";
 
 const app = express();
 
@@ -20,6 +21,7 @@ app.get("/health", (req, res) => {
 // بعد middlewares
 app.use("/api/users", userRoutes);
 
+app.use("/api/products", productRoutes);
 
 // 🔹 404 handler (after all routes)
 app.use((req, res, next) => {
