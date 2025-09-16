@@ -21,7 +21,6 @@ export const registerUser = async (req, res) => {
       name,
       email,
       password: hashedPassword,
-      token,
     });
     
     await user.save();
@@ -29,7 +28,7 @@ export const registerUser = async (req, res) => {
     // ✅ generate token after successful registration
     const token = generateJWT(user._id);
 
-    res.status(201).json({ message: "User registered successfully", userId: user._id }); //lazem 27welo l json
+    res.status(201).json({ message: "User registered successfully", userId: user._id , token }); //lazem 27welo l json
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error", error: err.message });
