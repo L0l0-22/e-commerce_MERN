@@ -1,6 +1,7 @@
 // controllers/cartControllers.js
 import Cart from "../models/cartModel.js";
 import productModal from "../models/ProductModel.js";
+import Order from "../models/orderModel.js";   // ✅ add this
 
 // shared helper (no req/res)
   const makeNewCart = (userId) =>
@@ -197,7 +198,7 @@ export const deleteCartItem = async (req, res , next) => {
   }
 };
 
-// delete /api/cart/
+// delete /api/cart
 export const clearCart = async (req, res , next) => {
   try {
     const userId = req.user._id; // ✅ comes from JWT middleware
@@ -220,6 +221,87 @@ export const clearCart = async (req, res , next) => {
 
   } catch (err) {
     console.error("[Cart] clear error:", err);
+    next(err);
+  }
+};
+
+// post /api/cart/checkout
+export const checkoutCart = async (req, res , next) => {
+  try {
+    const userId = req.user._id; // ✅ comes from JWT middleware
+    const { shippingAddress, paymentMethod } = req.body;
+
+    if (!userId) return res.status(400).json({ message: "userId is required" });
+    
+    if (!shippingAddress) {
+      return res.status(400).json({ message: "Shipping address is required" });
+    }
+
+    if (!paymentMethod || !["cash", "credit", "paypal"].includes(paymentMethod)) {
+      return res.status(400).json({ 
+        message: "Payment method is required and must be one of: cash, credit, paypal" 
+      });
+    }
+
+    // 1) Find active cart
+    const cart = await Cart.findOne({ userId, status: "active" }).populate({ path: "items.product", select: "title image price" });
+    if (!cart || cart.items.length === 0) {
+      return res.status(400).json({ message: "Cart is empty" });
+    }
+
+    // 2) Transform cart items → order items
+    const orderItems = [];
+    for (const item of cart.items) {
+      const product = item.product;
+      if (!product) {
+        return res.status(400).json({ message: "Product not found" });
+      }
+
+      orderItems.push({
+        product: product._id,
+        title: product.title,
+        image: product.image,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        subtotal: item.quantity * item.unitPrice,
+      });
+    }
+
+    // 3) Calculate total and create the order
+    const totalAmount = orderItems.reduce(
+      (sum, item) => sum + item.subtotal,
+      0
+    );
+
+    const order = await Order.create({
+      userId,
+      items: orderItems,
+      totalAmount,
+      shippingAddress,
+      paymentMethod,
+      status: "pending", // default
+    });
+    
+    // 4) Mark cart as completed & create new active cart
+    cart.status = "completed";
+    await cart.save();
+
+    const newCart = await Cart.create({
+      userId,
+      items: [],
+      totalAmount: 0,
+      status: "active",
+    });
+
+    return res.status(201).json({
+      message: "Checkout successful",
+      order,
+      completedCart: cart,
+      newActiveCart: newCart,
+    });
+
+  } catch (err) {
+    console.error("[Cart] checkout error:", err);
     next(err);
   }
 };

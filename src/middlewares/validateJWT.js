@@ -16,7 +16,7 @@ const validateJWT = (req , res , next) =>{
         return;
     }
 
-    jwt.verify(token , "supersecretkey123" , async (err , payload )=>{
+    jwt.verify(token , process.env.JWT_SECRET || '' , async (err , payload )=>{
         if(err){
             res.status(403).send("Invalid token");
         }

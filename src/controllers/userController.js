@@ -71,7 +71,7 @@ export const loginUser = async (req, res) => {
 const generateJWT = (userId) =>{
   return jwt.sign(
     { id: userId },                // payload
-    "supersecretkey123",        // secret key (store in .env)
+    process.env.JWT_SECRET || '',        // secret key (store in .env)
     { expiresIn: "1h" }            // options (token expires in 1 hour)
   );
 }
